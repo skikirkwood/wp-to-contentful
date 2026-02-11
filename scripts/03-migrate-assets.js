@@ -13,10 +13,15 @@ const axios = require('axios');
 
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 5;
 const DELAY_MS = parseInt(process.env.DELAY_MS) || 1000;
+// Comma-separated WP media IDs to skip (e.g. "41041,41042") - for assets that consistently timeout
+const SKIP_ASSET_IDS = new Set((process.env.SKIP_ASSET_IDS || '').split(',').map(s => s.trim()).filter(Boolean).map(Number));
 
 async function getClient() {
+  // uploadTimeout: Contentful default is 5 min; increase for slow connections (e.g. 600000 = 10 min)
+  const uploadTimeout = parseInt(process.env.ASSET_UPLOAD_TIMEOUT_MS || '600000');
   const client = contentful.createClient({
-    accessToken: process.env.CONTENTFUL_MANAGEMENT_TOKEN
+    accessToken: process.env.CONTENTFUL_MANAGEMENT_TOKEN,
+    uploadTimeout
   });
   
   const space = await client.getSpace(process.env.CONTENTFUL_SPACE_ID);
@@ -100,6 +105,9 @@ async function migrateAssets() {
   if (wpExportPath.includes('poc')) {
     console.log('Using PoC export (wp-export-poc.json)\n');
   }
+  if (SKIP_ASSET_IDS.size > 0) {
+    console.log(`Skipping ${SKIP_ASSET_IDS.size} asset(s): ${[...SKIP_ASSET_IDS].join(', ')}\n`);
+  }
   if (!await fs.pathExists(wpExportPath)) {
     console.error('Error: wp-export.json not found. Run npm run export first.');
     process.exit(1);
@@ -109,7 +117,18 @@ async function migrateAssets() {
   const rawMedia = wpData.media || [];
   
   // Filter invalid items (empty strings, null) - some WordPress hosts return these
-  const media = rawMedia.filter(item => typeof item === 'object' && item !== null);
+  let media = rawMedia.filter(item => typeof item === 'object' && item !== null);
+  
+  // Filter out videos (often large, cause timeouts); set MIGRATE_VIDEOS=true to include
+  const migrateVideos = process.env.MIGRATE_VIDEOS === 'true';
+  if (!migrateVideos) {
+    const before = media.length;
+    media = media.filter(item => !(item.mime_type || '').startsWith('video/'));
+    const excluded = before - media.length;
+    if (excluded > 0) {
+      console.log(`Excluding ${excluded} video(s) (set MIGRATE_VIDEOS=true to include)\n`);
+    }
+  }
   
   if (rawMedia.length > 0 && media.length === 0) {
     console.error('Error: wp-export.json has media entries but they are invalid (empty or missing data).');
@@ -153,6 +172,13 @@ async function migrateAssets() {
       // Skip if already migrated
       if (assetMap[wpId]) {
         stats.skipped++;
+        return;
+      }
+
+      // Skip if in skip list (problematic assets that timeout)
+      if (SKIP_ASSET_IDS.has(wpId)) {
+        stats.skipped++;
+        console.log(`  ⊘ Skipped [${wpId}] (in SKIP_ASSET_IDS)`);
         return;
       }
 
