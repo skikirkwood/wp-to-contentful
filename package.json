@@ -1,0 +1,27 @@
+{
+  "name": "wordpress-to-contentful-migration",
+  "version": "1.0.0",
+  "description": "Migration toolkit for moving WordPress content to Contentful",
+  "scripts": {
+    "export": "node scripts/01-export-wordpress.js",
+    "create-types": "node scripts/02-create-content-types.js",
+    "migrate-assets": "node scripts/03-migrate-assets.js",
+    "filter-poc": "node scripts/filter-export-poc.js",
+    "delete-assets": "node scripts/delete-migrated-assets.js",
+    "migrate-content": "node scripts/04-migrate-content.js",
+    "validate": "node scripts/05-validate-migration.js",
+    "full-migration": "npm run export && npm run create-types && npm run migrate-assets && npm run migrate-content && npm run validate"
+  },
+  "dependencies": {
+    "@contentful/rich-text-types": "^16.8.5",
+    "axios": "^1.7.2",
+    "contentful": "^10.15.0",
+    "contentful-management": "^11.31.0",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "node-html-parser": "^6.1.13"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

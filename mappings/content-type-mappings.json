@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Custom content type mappings for WordPress to Contentful migration",
+  
+  "contentTypes": {
+    "product": {
+      "name": "Product",
+      "displayField": "name",
+      "description": "Example custom post type mapping for WooCommerce products",
+      "fields": [
+        {
+          "id": "name",
+          "name": "Product Name",
+          "type": "Symbol",
+          "required": true
+        },
+        {
+          "id": "slug",
+          "name": "Slug",
+          "type": "Symbol",
+          "required": true,
+          "validations": [{ "unique": true }]
+        },
+        {
+          "id": "description",
+          "name": "Description",
+          "type": "RichText"
+        },
+        {
+          "id": "shortDescription",
+          "name": "Short Description",
+          "type": "Text"
+        },
+        {
+          "id": "price",
+          "name": "Price",
+          "type": "Number"
+        },
+        {
+          "id": "salePrice",
+          "name": "Sale Price",
+          "type": "Number"
+        },
+        {
+          "id": "sku",
+          "name": "SKU",
+          "type": "Symbol"
+        },
+        {
+          "id": "images",
+          "name": "Product Images",
+          "type": "Array",
+          "items": {
+            "type": "Link",
+            "linkType": "Asset"
+          }
+        },
+        {
+          "id": "categories",
+          "name": "Product Categories",
+          "type": "Array",
+          "items": {
+            "type": "Link",
+            "linkType": "Entry",
+            "validations": [{ "linkContentType": ["productCategory"] }]
+          }
+        },
+        {
+          "id": "wpId",
+          "name": "WordPress ID",
+          "type": "Integer",
+          "disabled": true
+        }
+      ]
+    },
+    
+    "productCategory": {
+      "name": "Product Category",
+      "displayField": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "Name",
+          "type": "Symbol",
+          "required": true
+        },
+        {
+          "id": "slug",
+          "name": "Slug",
+          "type": "Symbol",
+          "required": true
+        },
+        {
+          "id": "description",
+          "name": "Description",
+          "type": "Text"
+        },
+        {
+          "id": "parent",
+          "name": "Parent Category",
+          "type": "Link",
+          "linkType": "Entry",
+          "validations": [{ "linkContentType": ["productCategory"] }]
+        },
+        {
+          "id": "wpId",
+          "name": "WordPress ID",
+          "type": "Integer",
+          "disabled": true
+        }
+      ]
+    },
+    
+    "testimonial": {
+      "name": "Testimonial",
+      "displayField": "authorName",
+      "description": "Example custom post type for testimonials",
+      "fields": [
+        {
+          "id": "authorName",
+          "name": "Author Name",
+          "type": "Symbol",
+          "required": true
+        },
+        {
+          "id": "authorTitle",
+          "name": "Author Title/Company",
+          "type": "Symbol"
+        },
+        {
+          "id": "quote",
+          "name": "Quote",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "id": "rating",
+          "name": "Rating",
+          "type": "Integer",
+          "validations": [{ "range": { "min": 1, "max": 5 } }]
+        },
+        {
+          "id": "authorPhoto",
+          "name": "Author Photo",
+          "type": "Link",
+          "linkType": "Asset"
+        },
+        {
+          "id": "featured",
+          "name": "Featured",
+          "type": "Boolean"
+        },
+        {
+          "id": "wpId",
+          "name": "WordPress ID",
+          "type": "Integer",
+          "disabled": true
+        }
+      ]
+    }
+  },
+  
+  "fieldMappings": {
+    "$comment": "Map WordPress custom fields (ACF) to Contentful fields",
+    
+    "product": {
+      "_regular_price": "price",
+      "_sale_price": "salePrice",
+      "_sku": "sku",
+      "product_cat": "categories"
+    },
+    
+    "testimonial": {
+      "testimonial_author": "authorName",
+      "testimonial_company": "authorTitle",
+      "testimonial_content": "quote",
+      "testimonial_rating": "rating"
+    }
+  }
+}
