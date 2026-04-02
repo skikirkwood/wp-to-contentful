@@ -11,13 +11,19 @@ async function validate() {
   console.log('Migration Validation');
   console.log('====================\n');
 
-  // Load data files
-  const wpExportPath = './data/wp-export.json';
+  // Load data files — prefer PoC export when available
+  const wpExportPath = await fs.pathExists('./data/wp-export-poc.json')
+    ? './data/wp-export-poc.json'
+    : './data/wp-export.json';
   const entryMapPath = './data/entry-map.json';
   const assetMapPath = './data/asset-map.json';
 
+  if (wpExportPath.includes('poc')) {
+    console.log('Using PoC export (wp-export-poc.json)\n');
+  }
+
   if (!await fs.pathExists(wpExportPath)) {
-    console.error('Error: wp-export.json not found');
+    console.error('Error: No export file found. Run the export step first.');
     process.exit(1);
   }
 

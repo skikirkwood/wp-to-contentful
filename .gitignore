@@ -5,6 +5,9 @@ node_modules/
 .env
 .env.local
 
+# Next.js build output
+.next/
+
 # Generated data
 data/
 

@@ -131,9 +131,26 @@ async function getPostTypes() {
 /**
  * Main export function
  */
+async function clearPreviousRunData() {
+  const files = ['./data/asset-map.json', './data/entry-map.json', './data/validation-report.json'];
+  let cleared = 0;
+  for (const f of files) {
+    if (await fs.pathExists(f)) {
+      await fs.remove(f);
+      cleared++;
+    }
+  }
+  if (cleared > 0) {
+    console.log(`Cleared ${cleared} data file(s) from previous run.\n`);
+  }
+}
+
 async function exportWordPress() {
   console.log('WordPress Content Export');
   console.log('========================\n');
+
+  await clearPreviousRunData();
+
   console.log(`Source: ${WP_BASE}\n`);
   
   if (!WP_BASE) {

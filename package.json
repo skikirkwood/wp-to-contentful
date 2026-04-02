@@ -4,10 +4,13 @@
   "description": "Migration toolkit for moving WordPress content to Contentful",
   "scripts": {
     "export": "node scripts/01-export-wordpress.js",
+    "export-poc": "node scripts/01-export-poc.js",
+    "export-full": "node scripts/01-export-wordpress.js",
     "create-types": "node scripts/02-create-content-types.js",
     "migrate-assets": "node scripts/03-migrate-assets.js",
     "filter-poc": "node scripts/filter-export-poc.js",
     "delete-assets": "node scripts/delete-migrated-assets.js",
+    "clean-space": "node scripts/clean-space.js",
     "migrate-content": "node scripts/04-migrate-content.js",
     "validate": "node scripts/05-validate-migration.js",
     "full-migration": "npm run export && npm run create-types && npm run migrate-assets && npm run migrate-content && npm run validate"
