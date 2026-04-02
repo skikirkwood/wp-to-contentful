@@ -98,6 +98,7 @@ const CONTENT_SELECTORS = [
   '.hero-section .desc',
   'article .desc',
   '.hero-section',
+  '.hero2',
   'article',
 ];
 
