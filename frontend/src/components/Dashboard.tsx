@@ -47,7 +47,7 @@ export default function Dashboard() {
   const logIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const fullRunRef = useRef(false);
-  const [autoRunTrigger, setAutoRunTrigger] = useState<string | null>(null);
+  const autoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAnyRunning = Object.values(stepStates).some((s) => s.status === "running");
 
@@ -156,7 +156,16 @@ export default function Dashboard() {
             },
           }));
           if (fullRunRef.current && exitCode === 0) {
-            setAutoRunTrigger(stepId);
+            const idx = STEPS.findIndex((s) => s.id === stepId);
+            if (idx >= 0 && idx < STEPS.length - 1) {
+              const next = STEPS[idx + 1];
+              setActiveView(idx + 2);
+              autoRunTimerRef.current = setTimeout(() => {
+                runStepRef.current(next.id);
+              }, 800);
+            } else {
+              fullRunRef.current = false;
+            }
           } else if (exitCode !== 0) {
             fullRunRef.current = false;
           }
@@ -178,8 +187,6 @@ export default function Dashboard() {
 
   const runStep = useCallback(
     async (stepId: string) => {
-      if (isAnyRunning) return;
-
       setStepStates((prev) => ({
         ...prev,
         [stepId]: {
@@ -253,28 +260,20 @@ export default function Dashboard() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isAnyRunning]
+    [handleEvent, addLog]
   );
 
-  // Auto-run next step in full migration (but don't change the view)
-  useEffect(() => {
-    if (!autoRunTrigger || !fullRunRef.current) return;
-    setAutoRunTrigger(null);
-
-    const idx = STEPS.findIndex((s) => s.id === autoRunTrigger);
-    if (idx >= 0 && idx < STEPS.length - 1) {
-      const next = STEPS[idx + 1];
-      const timer = setTimeout(() => runStep(next.id), 600);
-      return () => clearTimeout(timer);
-    } else {
-      fullRunRef.current = false;
-    }
-  }, [autoRunTrigger, runStep]);
+  const runStepRef = useRef(runStep);
+  useEffect(() => { runStepRef.current = runStep; }, [runStep]);
 
   const stopScript = useCallback(async () => {
     abortRef.current?.abort();
-    await fetch("/api/run", { method: "DELETE" });
+    if (autoRunTimerRef.current) {
+      clearTimeout(autoRunTimerRef.current);
+      autoRunTimerRef.current = null;
+    }
     fullRunRef.current = false;
+    await fetch("/api/run", { method: "DELETE" });
   }, []);
 
   const clearStepLogs = useCallback(
