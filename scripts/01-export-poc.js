@@ -104,11 +104,13 @@ const CONTENT_SELECTORS = [
   '.entry-content',
   '.post-content',
   '.page-content',
+  '.article-content',
   '.hero-section .desc',
   'article .desc',
   '.hero-section',
   '.hero2',
   'article',
+  'main',
 ];
 
 const MAX_SCRAPED_HTML = 50000;
@@ -116,11 +118,21 @@ const MAX_SCRAPED_HTML = 50000;
 async function scrapeRenderedContent(pageUrl) {
   if (!pageUrl) return '';
   try {
+    let referer = pageUrl;
+    try { referer = new URL(pageUrl).origin + '/'; } catch { /* keep full url */ }
     const resp = await axios.get(pageUrl, {
       timeout: 15000,
       maxRedirects: 5,
       responseType: 'text',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WP-Migration/1.0)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': referer,
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+      },
     });
     const { parse } = require('node-html-parser');
     const root = parse(resp.data);
