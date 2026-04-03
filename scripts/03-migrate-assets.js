@@ -195,11 +195,20 @@ async function migrateAssets() {
         // Download file from WordPress (Contentful requires file content, not external URLs)
         // Contentful CMA allows up to 1GB; set MAX_ASSET_SIZE_MB in .env for larger files
         const maxSizeMB = parseInt(process.env.MAX_ASSET_SIZE_MB || '500');
+        const siteOrigin = sourceUrl.replace(/\/wp-content\/.*$/, '/');
         const axiosConfig = {
           responseType: 'arraybuffer',
           maxContentLength: maxSizeMB * 1024 * 1024,
           timeout: 120000, // 2 min for large files
-          validateStatus: (status) => status === 200
+          validateStatus: (status) => status === 200,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Referer': siteOrigin,
+            'Sec-Fetch-Dest': 'image',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'same-origin',
+          },
         };
         if (process.env.WP_USERNAME && process.env.WP_APP_PASSWORD) {
           axiosConfig.auth = {

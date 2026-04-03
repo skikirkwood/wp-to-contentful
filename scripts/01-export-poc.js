@@ -28,6 +28,15 @@ const wpClient = axios.create({
   ...(WP_USERNAME && WP_APP_PASSWORD && {
     auth: { username: WP_USERNAME, password: WP_APP_PASSWORD }
   }),
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': WP_BASE ? WP_BASE.replace(/\/wp-json\/wp\/v2\/?$/, '/') : '',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+  },
   responseType: 'text',
   timeout: 90000,
   maxContentLength: 50 * 1024 * 1024,
@@ -282,76 +291,104 @@ async function exportPoc() {
     }
 
     if (!homePage) {
-      console.error('Error: Could not find any pages.');
-      process.exit(1);
-    }
-
-    collectedPages.push(homePage);
-    collectedPageIds.add(homePage.id);
-    console.log(`  ✓ "${homePage.title?.rendered || homePage.slug}" (ID ${homePage.id})\n`);
-
-    // Discover linked pages from home page content
-    const linkedSlugs = extractPageSlugs(homePage.content?.rendered || '', baseDomain);
-    console.log(`Found ${linkedSlugs.length} internal link(s) on home page.`);
-    const slugsToFetch = linkedSlugs.slice(0, POC_MAX_LINKED_PAGES);
-
-    if (slugsToFetch.length > 0) {
-      console.log(`Fetching up to ${slugsToFetch.length} linked page(s)...\n`);
-      for (const slug of slugsToFetch) {
-        await new Promise(r => setTimeout(r, 200));
-        const page = await fetchPageBySlug(slug);
-        if (page && !collectedPageIds.has(page.id)) {
-          collectedPages.push(page);
-          collectedPageIds.add(page.id);
-          console.log(`  ✓ ${slug} (ID ${page.id})`);
-        } else if (!page) {
-          console.log(`  - ${slug} — not a page (may be a post or external link)`);
-        }
-      }
+      console.log('  No pages found on this site.\n');
     } else {
-      console.log('Home page had no internal links. Fetching a few additional pages...\n');
-      try {
-        const resp = await wpClient.get('/pages', { params: { per_page: POC_MAX_LINKED_PAGES, status: 'publish' } });
-        const extras = parseJson(resp.data, 'extra pages').filter(p => typeof p === 'object' && p !== null);
-        for (const page of extras) {
-          if (!collectedPageIds.has(page.id)) {
+      collectedPages.push(homePage);
+      collectedPageIds.add(homePage.id);
+      console.log(`  ✓ "${homePage.title?.rendered || homePage.slug}" (ID ${homePage.id})\n`);
+
+      // Discover linked pages from home page content
+      const linkedSlugs = extractPageSlugs(homePage.content?.rendered || '', baseDomain);
+      console.log(`Found ${linkedSlugs.length} internal link(s) on home page.`);
+      const slugsToFetch = linkedSlugs.slice(0, POC_MAX_LINKED_PAGES);
+
+      if (slugsToFetch.length > 0) {
+        console.log(`Fetching up to ${slugsToFetch.length} linked page(s)...\n`);
+        for (const slug of slugsToFetch) {
+          await new Promise(r => setTimeout(r, 200));
+          const page = await fetchPageBySlug(slug);
+          if (page && !collectedPageIds.has(page.id)) {
             collectedPages.push(page);
             collectedPageIds.add(page.id);
-            console.log(`  ✓ ${page.slug} (ID ${page.id})`);
+            console.log(`  ✓ ${slug} (ID ${page.id})`);
+          } else if (!page) {
+            console.log(`  - ${slug} — not a page (may be a post or external link)`);
           }
         }
-      } catch { /* ignore */ }
+      } else {
+        console.log('Home page had no internal links. Fetching a few additional pages...\n');
+        try {
+          const resp = await wpClient.get('/pages', { params: { per_page: POC_MAX_LINKED_PAGES, status: 'publish' } });
+          const extras = parseJson(resp.data, 'extra pages').filter(p => typeof p === 'object' && p !== null);
+          for (const page of extras) {
+            if (!collectedPageIds.has(page.id)) {
+              collectedPages.push(page);
+              collectedPageIds.add(page.id);
+              console.log(`  ✓ ${page.slug} (ID ${page.id})`);
+            }
+          }
+        } catch { /* ignore */ }
+      }
     }
   }
 
-  console.log(`\n${collectedPages.length} page(s) collected.\n`);
+  if (collectedPages.length > 0) {
+    console.log(`\n${collectedPages.length} page(s) collected.\n`);
+  }
+
+  // If no pages were found, fetch recent posts instead
+  const collectedPosts = [];
+  const collectedPostIds = new Set();
+
+  if (collectedPages.length === 0) {
+    console.log('Fetching recent posts instead...\n');
+    try {
+      const resp = await wpClient.get('/posts', {
+        params: { per_page: POC_MAX_LINKED_PAGES + 1, status: 'publish', orderby: 'date', order: 'desc' }
+      });
+      const posts = parseJson(resp.data, 'posts').filter(p => typeof p === 'object' && p !== null);
+      for (const post of posts) {
+        if (!collectedPostIds.has(post.id)) {
+          collectedPosts.push(post);
+          collectedPostIds.add(post.id);
+          const title = (post.title?.rendered || post.slug || '').replace(/<[^>]*>/g, '').substring(0, 60);
+          console.log(`  ✓ ${title} (ID ${post.id})`);
+        }
+      }
+    } catch (err) {
+      console.warn(`  Could not fetch posts: ${err.message}`);
+    }
+    console.log(`\n${collectedPosts.length} post(s) collected.\n`);
+  }
+
+  const allContent = [...collectedPages, ...collectedPosts];
 
   // Fill in empty content by scraping the live page
-  const emptyPages = collectedPages.filter(p => !(p.content?.rendered));
-  if (emptyPages.length > 0) {
-    console.log(`${emptyPages.length} page(s) have empty content — scraping live site...\n`);
-    for (const page of emptyPages) {
-      const url = page.link || '';
+  const emptyItems = allContent.filter(p => !(p.content?.rendered));
+  if (emptyItems.length > 0) {
+    console.log(`${emptyItems.length} item(s) have empty content — scraping live site...\n`);
+    for (const item of emptyItems) {
+      const url = item.link || '';
       if (!url) continue;
       await new Promise(r => setTimeout(r, 300));
       const html = await scrapeRenderedContent(url);
       if (html) {
-        if (!page.content) page.content = {};
-        page.content.rendered = html;
-        console.log(`  ✓ ${page.slug} — scraped ${html.length} chars`);
+        if (!item.content) item.content = {};
+        item.content.rendered = html;
+        console.log(`  ✓ ${item.slug} — scraped ${html.length} chars`);
       } else {
-        console.log(`  ⊘ ${page.slug} — no content found`);
+        console.log(`  ⊘ ${item.slug} — no content found`);
       }
     }
     console.log('');
   }
 
-  // Step 2: Collect media referenced by these pages
+  // Step 2: Collect media referenced by content
   console.log('Collecting referenced media...');
   const mediaMap = new Map();
 
   // Featured images
-  const featuredIds = extractMediaIds(collectedPages);
+  const featuredIds = extractMediaIds(allContent);
   for (const id of featuredIds) {
     if (mediaMap.has(id)) continue;
     await new Promise(r => setTimeout(r, 200));
@@ -363,8 +400,8 @@ async function exportPoc() {
   }
 
   // Inline media from content
-  for (const page of collectedPages) {
-    const urls = extractMediaUrls(page.content?.rendered || '');
+  for (const item of allContent) {
+    const urls = extractMediaUrls(item.content?.rendered || '');
     for (const url of urls) {
       await new Promise(r => setTimeout(r, 200));
       const media = await fetchMediaByUrl(url);
@@ -381,9 +418,9 @@ async function exportPoc() {
   // Step 3: Collect authors
   console.log('Collecting authors...');
   const userMap = new Map();
-  for (const page of collectedPages) {
-    if (page.author && !userMap.has(page.author)) {
-      const user = await fetchUserById(page.author);
+  for (const item of allContent) {
+    if (item.author && !userMap.has(item.author)) {
+      const user = await fetchUserById(item.author);
       if (user) {
         userMap.set(user.id, user);
         console.log(`  ✓ ${user.name || user.slug}`);
@@ -401,7 +438,7 @@ async function exportPoc() {
   // Build export
   const exportData = {
     pages: collectedPages,
-    posts: [],
+    posts: collectedPosts,
     media: collectedMedia,
     users: collectedUsers,
     categories,
@@ -416,10 +453,11 @@ async function exportPoc() {
         pageSlugs: POC_PAGE_SLUGS,
         maxLinkedPages: POC_MAX_LINKED_PAGES,
         pagesIncluded: collectedPages.length,
+        postsIncluded: collectedPosts.length,
         mediaIncluded: collectedMedia.length,
       },
       counts: {
-        posts: 0,
+        posts: collectedPosts.length,
         pages: collectedPages.length,
         categories: categories.length,
         tags: tags.length,
@@ -436,6 +474,7 @@ async function exportPoc() {
   console.log('PoC Export Complete!\n');
   console.log('Content exported:');
   console.log(`  Pages:      ${collectedPages.length}`);
+  console.log(`  Posts:      ${collectedPosts.length}`);
   console.log(`  Media:      ${collectedMedia.length}`);
   console.log(`  Users:      ${collectedUsers.length}`);
   console.log(`  Categories: ${categories.length}`);

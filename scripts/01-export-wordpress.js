@@ -11,7 +11,7 @@ const WP_BASE = process.env.WP_API_URL;
 const WP_USERNAME = process.env.WP_USERNAME;
 const WP_APP_PASSWORD = process.env.WP_APP_PASSWORD;
 
-// Configure axios with optional authentication
+// Configure axios with optional authentication and browser-like headers
 const wpClient = axios.create({
   baseURL: WP_BASE,
   ...(WP_USERNAME && WP_APP_PASSWORD && {
@@ -19,7 +19,16 @@ const wpClient = axios.create({
       username: WP_USERNAME,
       password: WP_APP_PASSWORD
     }
-  })
+  }),
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': WP_BASE ? WP_BASE.replace(/\/wp-json\/wp\/v2\/?$/, '/') : '',
+    'Sec-Fetch-Dest': 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'same-origin',
+  },
 });
 
 /**
