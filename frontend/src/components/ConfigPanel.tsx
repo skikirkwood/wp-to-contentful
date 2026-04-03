@@ -69,9 +69,9 @@ export default function ConfigPanel() {
         {/* Source / Destination summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
           <div className="bg-white rounded-xl border-2 border-blue-200 p-5 flex items-start gap-4">
-            <span className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3.512 12.01c.045.3.09.6.18.9l-2.16 1.62c-.18.15-.24.42-.12.63l2.04 3.51c.12.21.39.3.6.21l2.55-1.02c.48.36.99.66 1.56.87l.39 2.7c.03.24.24.42.48.42h4.08c.24 0 .45-.18.48-.42l.39-2.7c.57-.21 1.08-.51 1.56-.87l2.55 1.02c.21.09.48 0 .6-.21l2.04-3.51c.12-.21.06-.48-.12-.63l-2.16-1.62c.09-.3.15-.6.18-.9s.045-.6 0-.9l2.16-1.62c.18-.15.24-.42.12-.63l-2.04-3.51c-.12-.21-.39-.3-.6-.21l-2.55 1.02a7.392 7.392 0 00-1.56-.87l-.39-2.7C13.05 3.18 12.84 3 12.6 3H8.52c-.24 0-.45.18-.48.42l-.39 2.7c-.57.21-1.08.51-1.56.87L3.54 5.97c-.21-.09-.48 0-.6.21L.9 9.69c-.12.21-.06.48.12.63l2.16 1.62c-.045.3-.09.6-.18.9zm7.04-2.51a2.5 2.5 0 110 5 2.5 2.5 0 010-5z" />
+            <span className="w-10 h-10 bg-[#1877F2] rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
               </svg>
             </span>
             <div className="min-w-0">
@@ -84,8 +84,8 @@ export default function ConfigPanel() {
           </div>
 
           <div className="bg-white rounded-xl border-2 border-orange-200 p-5 flex items-start gap-4">
-            <span className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-orange-600 font-bold text-lg">C</span>
+            <span className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src="/contentful-logo.png" alt="Contentful" className="w-10 h-10 rounded-lg" />
             </span>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
