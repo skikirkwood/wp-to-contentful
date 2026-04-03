@@ -85,8 +85,19 @@ async function migrateContent() {
     console.log(`Resuming from previous run (${Object.keys(entryMap).length} entries migrated)\n`);
   }
 
+  // Build URL-based asset map for images that lack WP-specific attributes
+  const urlAssetMap = {};
+  for (const media of (wpData.media || [])) {
+    const sourceUrl = media.source_url || media.guid?.rendered;
+    const wpId = media.id;
+    if (sourceUrl && assetMap[wpId]) {
+      urlAssetMap[sourceUrl] = assetMap[wpId];
+    }
+  }
+  console.log(`Built URL asset map: ${Object.keys(urlAssetMap).length} entries\n`);
+
   const { environment } = await getClient();
-  const transformer = new RichTextTransformer(assetMap, entryMap);
+  const transformer = new RichTextTransformer(assetMap, entryMap, { urlAssetMap });
 
   const stats = {
     authors: { total: 0, migrated: 0, skipped: 0, failed: 0 },

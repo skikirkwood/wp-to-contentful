@@ -64,10 +64,10 @@ export const STEPS: MigrationStep[] = [
 
 export const STEP_STATS: Record<string, StatCardDef[]> = {
   export: [
-    { key: "posts", label: "POSTS", color: "amber" },
     { key: "pages", label: "PAGES", color: "blue" },
+    { key: "posts", label: "POSTS", color: "amber" },
     { key: "media", label: "MEDIA", color: "emerald" },
-    { key: "taxonomies", label: "TAXONOMIES", color: "slate" },
+    { key: "authors", label: "AUTHORS", color: "purple" },
   ],
   "create-types": [
     { key: "created", label: "CREATED", color: "blue" },

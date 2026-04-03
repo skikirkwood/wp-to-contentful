@@ -216,7 +216,19 @@ async function migrateAssets() {
             password: process.env.WP_APP_PASSWORD
           };
         }
-        const response = await axios.get(sourceUrl, axiosConfig);
+        let response;
+        try {
+          response = await axios.get(sourceUrl, axiosConfig);
+        } catch (dlErr) {
+          // If 404, try stripping WordPress resize suffix (e.g. -1024x375.png → .png)
+          const originalUrl = sourceUrl.replace(/-\d+x\d+(\.\w+)$/, '$1');
+          if (dlErr.response?.status === 404 && originalUrl !== sourceUrl) {
+            console.log(`    ↻ 404 on resized URL, retrying original...`);
+            response = await axios.get(originalUrl, axiosConfig);
+          } else {
+            throw dlErr;
+          }
+        }
 
         const fileBuffer = Buffer.from(response.data);
 

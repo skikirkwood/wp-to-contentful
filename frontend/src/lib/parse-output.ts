@@ -16,7 +16,7 @@ export function parseLine(raw: string): ParsedLine {
 
   // Success markers
   if (line.includes("✓") || line.includes("✔")) {
-    const contentMatch = line.match(/[✓✔]\s+(Author|Category|Tag|Post|Page):/i);
+    const contentMatch = line.match(/[✓✔]\s+(Author|Category|Tag|Post|Page|Media):/i);
     if (contentMatch) {
       const pluralMap: Record<string, string> = {
         author: "authors",
@@ -24,6 +24,7 @@ export function parseLine(raw: string): ParsedLine {
         tag: "tags",
         post: "posts",
         page: "pages",
+        media: "media",
       };
       const key = pluralMap[contentMatch[1].toLowerCase()];
       if (key) {

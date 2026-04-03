@@ -81,6 +81,19 @@ function extractPageSlugs(html, baseDomain) {
   return [...slugs];
 }
 
+let syntheticIdCounter = 900000000;
+
+function guessMimeType(filename) {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  const map = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+    avif: 'image/avif', bmp: 'image/bmp', ico: 'image/x-icon',
+    pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
 function extractMediaIds(pages) {
   const ids = new Set();
   for (const page of pages) {
@@ -89,13 +102,19 @@ function extractMediaIds(pages) {
   return [...ids];
 }
 
+function stripResizeSuffix(url) {
+  return url.replace(/-\d+x\d+(\.\w+)$/, '$1');
+}
+
 function extractMediaUrls(html) {
   if (!html) return [];
   const urls = new Set();
-  const regex = /(?:src|href)=["']([^"']*wp-content\/uploads\/[^"']+)["']/gi;
+  const regex = /(?:src|href|data-src|data-lazy-src|data-orig-file|data-srcset|srcset)=["']([^"']*wp-content\/uploads\/[^"',\s]+)/gi;
   let m;
   while ((m = regex.exec(html)) !== null) {
-    urls.add(m[1].split('?')[0]);
+    const raw = m[1].split('?')[0];
+    // Prefer original image (without -WIDTHxHEIGHT resize suffix)
+    urls.add(stripResizeSuffix(raw));
   }
   return [...urls];
 }
@@ -140,6 +159,20 @@ async function scrapeRenderedContent(pageUrl) {
     for (const sel of CONTENT_SELECTORS) {
       const el = root.querySelector(sel);
       if (el && el.innerHTML.trim().length > 50) {
+        // Fix lazy-loaded images: swap data-src/data-lazy-src into src
+        for (const img of el.querySelectorAll('img')) {
+          const src = img.getAttribute('src') || '';
+          const isPlaceholder = !src || src.startsWith('data:') || src.includes('placeholder');
+          if (isPlaceholder) {
+            const realSrc = img.getAttribute('data-src')
+              || img.getAttribute('data-lazy-src')
+              || img.getAttribute('data-orig-file')
+              || img.getAttribute('data-original');
+            if (realSrc) {
+              img.setAttribute('src', realSrc);
+            }
+          }
+        }
         let html = el.innerHTML;
         if (html.length > MAX_SCRAPED_HTML) {
           html = html.substring(0, MAX_SCRAPED_HTML);
@@ -279,7 +312,7 @@ async function exportPoc() {
       if (page && !collectedPageIds.has(page.id)) {
         collectedPages.push(page);
         collectedPageIds.add(page.id);
-        console.log(`  ✓ ${slug} (ID ${page.id})`);
+        console.log(`  ✓ Page: ${slug}`);
       } else if (!page) {
         console.log(`  ✗ ${slug} — not found`);
       }
@@ -307,7 +340,7 @@ async function exportPoc() {
     } else {
       collectedPages.push(homePage);
       collectedPageIds.add(homePage.id);
-      console.log(`  ✓ "${homePage.title?.rendered || homePage.slug}" (ID ${homePage.id})\n`);
+      console.log(`  ✓ Page: ${homePage.title?.rendered || homePage.slug}\n`);
 
       // Discover linked pages from home page content
       const linkedSlugs = extractPageSlugs(homePage.content?.rendered || '', baseDomain);
@@ -322,7 +355,7 @@ async function exportPoc() {
           if (page && !collectedPageIds.has(page.id)) {
             collectedPages.push(page);
             collectedPageIds.add(page.id);
-            console.log(`  ✓ ${slug} (ID ${page.id})`);
+            console.log(`  ✓ Page: ${slug}`);
           } else if (!page) {
             console.log(`  - ${slug} — not a page (may be a post or external link)`);
           }
@@ -336,7 +369,7 @@ async function exportPoc() {
             if (!collectedPageIds.has(page.id)) {
               collectedPages.push(page);
               collectedPageIds.add(page.id);
-              console.log(`  ✓ ${page.slug} (ID ${page.id})`);
+              console.log(`  ✓ Page: ${page.slug}`);
             }
           }
         } catch { /* ignore */ }
@@ -364,7 +397,7 @@ async function exportPoc() {
           collectedPosts.push(post);
           collectedPostIds.add(post.id);
           const title = (post.title?.rendered || post.slug || '').replace(/<[^>]*>/g, '').substring(0, 60);
-          console.log(`  ✓ ${title} (ID ${post.id})`);
+          console.log(`  ✓ Post: ${title}`);
         }
       }
     } catch (err) {
@@ -407,19 +440,63 @@ async function exportPoc() {
     const media = await fetchMediaById(id);
     if (media) {
       mediaMap.set(media.id, media);
-      console.log(`  ✓ Featured: ${media.source_url?.split('/').pop() || media.id}`);
+      console.log(`  ✓ Media: ${media.source_url?.split('/').pop() || media.id}`);
     }
   }
 
   // Inline media from content
+  const seenUrls = new Set();
   for (const item of allContent) {
     const urls = extractMediaUrls(item.content?.rendered || '');
     for (const url of urls) {
+      if (seenUrls.has(url)) continue;
+      seenUrls.add(url);
       await new Promise(r => setTimeout(r, 200));
       const media = await fetchMediaByUrl(url);
       if (media && !mediaMap.has(media.id)) {
         mediaMap.set(media.id, media);
-        console.log(`  ✓ Inline: ${media.source_url?.split('/').pop() || media.id}`);
+        console.log(`  ✓ Media: ${media.source_url?.split('/').pop() || media.id}`);
+      } else if (!media) {
+        // Verify the URL is reachable before creating a synthetic entry
+        let reachableUrl = url;
+        try {
+          const siteOrigin = url.replace(/\/wp-content\/.*$/, '/');
+          const headCfg = {
+            timeout: 10000,
+            maxRedirects: 5,
+            validateStatus: (s) => s >= 200 && s < 400,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              'Referer': siteOrigin,
+            },
+          };
+          await axios.head(url, headCfg);
+        } catch {
+          // Try original (non-resized) URL
+          const original = stripResizeSuffix(url);
+          if (original !== url) {
+            try {
+              const siteOrigin = original.replace(/\/wp-content\/.*$/, '/');
+              await axios.head(original, { timeout: 10000, maxRedirects: 5, validateStatus: (s) => s >= 200 && s < 400, headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': siteOrigin } });
+              reachableUrl = original;
+            } catch {
+              console.log(`  ⊘ ${url.split('/').pop()} — not reachable, skipping`);
+              continue;
+            }
+          } else {
+            console.log(`  ⊘ ${url.split('/').pop()} — not reachable, skipping`);
+            continue;
+          }
+        }
+        const filename = reachableUrl.split('/').pop()?.split('?')[0] || 'unknown';
+        const syntheticId = ++syntheticIdCounter;
+        mediaMap.set(syntheticId, {
+          id: syntheticId,
+          source_url: reachableUrl,
+          title: { rendered: filename },
+          mime_type: guessMimeType(filename),
+        });
+        console.log(`  ✓ Media: ${filename} (direct URL)`);
       }
     }
   }
@@ -435,7 +512,7 @@ async function exportPoc() {
       const user = await fetchUserById(item.author);
       if (user) {
         userMap.set(user.id, user);
-        console.log(`  ✓ ${user.name || user.slug}`);
+        console.log(`  ✓ Author: ${user.name || user.slug}`);
       }
     }
   }
