@@ -127,6 +127,9 @@ export default function ConfigPanel() {
             <div className="col-span-2">
               <Field label="Management Token" value={config.CONTENTFUL_MANAGEMENT_TOKEN || ""} onChange={(v) => update("CONTENTFUL_MANAGEMENT_TOKEN", v)} type="password" />
             </div>
+            <div className="col-span-2">
+              <Field label="Delivery Token" value={config.CONTENTFUL_DELIVERY_TOKEN || ""} onChange={(v) => update("CONTENTFUL_DELIVERY_TOKEN", v)} type="password" placeholder="Used for validation step" />
+            </div>
           </div>
         </div>
 
