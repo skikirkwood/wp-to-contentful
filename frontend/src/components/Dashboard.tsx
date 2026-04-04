@@ -351,6 +351,12 @@ export default function Dashboard() {
               onNext={() => setActiveView(activeView + 1)}
               hasNext={activeStepIndex < STEPS.length - 1}
               nextStepName={STEPS[activeStepIndex + 1]?.sidebarName || ""}
+              totalElapsedMs={(() => {
+                const starts = STEPS.map(s => stepStates[s.id].startedAt).filter(Boolean) as number[];
+                const ends = STEPS.map(s => stepStates[s.id].completedAt).filter(Boolean) as number[];
+                if (starts.length === 0 || ends.length === 0) return null;
+                return Math.max(...ends) - Math.min(...starts);
+              })()}
             />
           ) : null}
         </main>

@@ -17,6 +17,7 @@ interface Props {
   onNext: () => void;
   hasNext: boolean;
   nextStepName: string;
+  totalElapsedMs?: number | null;
 }
 
 function formatDuration(ms: number): string {
@@ -58,6 +59,7 @@ export default function StepView({
   onNext,
   hasNext,
   nextStepName,
+  totalElapsedMs,
 }: Props) {
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -185,7 +187,10 @@ export default function StepView({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </span>
-            <span className="text-sm font-medium text-green-700">Migration complete! All steps finished successfully.</span>
+            <span className="text-sm font-medium text-green-700">
+              Migration complete! All steps finished successfully.
+              {totalElapsedMs != null && ` Total time: ${formatDuration(totalElapsedMs)}.`}
+            </span>
           </div>
         )}
       </div>
