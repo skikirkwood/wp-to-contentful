@@ -50,6 +50,17 @@ export default function Dashboard() {
   const autoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAnyRunning = Object.values(stepStates).some((s) => s.status === "running");
+  const hasRunSuccessfully = Object.values(stepStates).some((s) => s.status === "running" || s.status === "complete");
+
+  const [configStatus, setConfigStatus] = useState<"loading" | "not-configured" | "configured">("loading");
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => {
+        setConfigStatus(data.WP_API_URL && data.CONTENTFUL_SPACE_ID && data.CONTENTFUL_MANAGEMENT_TOKEN ? "configured" : "not-configured");
+      })
+      .catch(() => setConfigStatus("not-configured"));
+  }, [activeView]);
 
   const addLog = useCallback((stepId: string, level: LogEntry["level"], message: string) => {
     const entry: LogEntry = { id: ++logIdRef.current, timestamp: Date.now(), level, message };
@@ -314,8 +325,22 @@ export default function Dashboard() {
             </button>
           )}
           <span className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-green-600 font-medium">Connected</span>
+            {hasRunSuccessfully ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-green-600 font-medium">Connected</span>
+              </>
+            ) : configStatus === "configured" ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                <span className="text-yellow-600 font-medium">Ready</span>
+              </>
+            ) : configStatus === "not-configured" ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-gray-300" />
+                <span className="text-gray-400 font-medium">Not Configured</span>
+              </>
+            ) : null}
           </span>
           <span className="text-xs text-gray-400">v1.0.0</span>
         </div>
